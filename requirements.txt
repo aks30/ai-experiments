@@ -1,0 +1,15 @@
+langchain
+langchainhub
+langchain-community
+langchain_core
+langchain_openai
+langchain_text_splitters
+openai
+SQLAlchemy
+streamlit
+duckduckgo-search
+pypdf
+fastembed
+docarray
+validators
+python-dotenv
