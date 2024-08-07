@@ -357,9 +357,6 @@ class CustomDataChatbot:
                         st.session_state["websites"].append(url)
 
 
-            if st.sidebar.button("Clear Website URL", type="primary"):
-                st.session_state["websites"] = []
-
             if len(st.session_state["websites"]) > 0 :
                 processURLOperation = self.index_URLs_to_vector_db(self,st.session_state["websites"])
                 if processURLOperation is True:
@@ -392,9 +389,6 @@ class CustomDataChatbot:
                     if valid_url :
                         st.session_state["youtube_video_links"].append(url)
 
-
-            if st.sidebar.button("Clear Youtube URL", type="primary"):
-                st.session_state["youtube_video_links"] = []
 
             if len(st.session_state["youtube_video_links"]) > 0 :
                 processURLOperation = self.index_youtube_videos_to_vector_db(self,st.session_state["youtube_video_links"])

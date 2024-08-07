@@ -19,3 +19,5 @@ pydub
 librosa
 fitz
 bs4
+ffprobe
+ffmpeg
