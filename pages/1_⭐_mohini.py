@@ -7,8 +7,8 @@ from langchain.memory import ConversationBufferMemory
 
 from langchain.prompts import PromptTemplate
 
-st.set_page_config(page_title="Mohini chatbot", page_icon="⭐")
-st.header('Record your micro improvement journey')
+st.set_page_config(page_title="Mohini Chatbot", page_icon="⭐")
+st.header('Record your micro improvement journey.')
 st.write('Please help with the answers to the questions asked regarding your micro improvement journey. A report of the project will be generated at the end.')
 
 # Dictionary to store usernames and passwords

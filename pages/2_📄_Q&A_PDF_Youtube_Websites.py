@@ -29,9 +29,6 @@ from langchain_community.document_loaders.generic import GenericLoader
 from langchain_community.document_loaders.parsers import (
     OpenAIWhisperParser
 )
-from langchain_community.document_loaders.parsers.audio import (
-    OpenAIWhisperParserLocal,
-)
 
 
 # Dictionary to store usernames and passwords
