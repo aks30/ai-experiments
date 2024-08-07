@@ -18,5 +18,4 @@ yt_dlp
 pydub
 librosa
 bs4
-ffprobe
-ffmpeg
+ffmpeg-python
