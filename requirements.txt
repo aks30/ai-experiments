@@ -17,7 +17,6 @@ faiss-cpu
 yt_dlp
 pydub
 librosa
-fitz
 bs4
 ffprobe
 ffmpeg
