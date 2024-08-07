@@ -1,4 +1,4 @@
-import mohiniutils
+import aiutils
 import streamlit as st
 from streaming import StreamHandler
 
@@ -7,22 +7,25 @@ from langchain.memory import ConversationBufferMemory
 
 from langchain.prompts import PromptTemplate
 
-st.set_page_config(page_title="Context aware chatbot", page_icon="⭐")
-st.header('Context aware chatbot')
-st.write('Enhancing Chatbot Interactions through Context Awareness')
-# st.write('[![view source code ](https://img.shields.io/badge/view_source_code-gray?logo=github)](https://github.com/shashankdeshpande/langchain-chatbot/blob/master/pages/2_%E2%AD%90_context_aware_chatbot.py)')
-
+st.set_page_config(page_title="Mohini chatbot", page_icon="⭐")
+st.header('Record your micro improvement journey')
+st.write('Please help with the answers to the questions asked regarding your micro improvement journey. A report of the project will be generated at the end.')
 
 # Dictionary to store usernames and passwords
 credentials = {
-    "user": "mohiniforsl"
+    "akash": "akashfortl",
+    "kiran": "kiranfortl",
+    "shyam": "shyamfortl",
+    "khushboo": "khushbooforsl",
+    "vijayashree": "vijayashreeforsl",
+    "prateek": "prateekforsl"
 }
 
 class ContextChatbot:
 
     def __init__(self):
-        mohiniutils.sync_st_session()
-        self.llm = mohiniutils.configure_llm()
+        aiutils.sync_st_session()
+        self.llm = aiutils.configure_llm()
 
     @staticmethod
     def login(username, password):
@@ -54,7 +57,7 @@ class ContextChatbot:
         chain = ConversationChain(llm=_self.llm, memory=memory, verbose=True, prompt=prompt_template)
         return chain
     
-    @mohiniutils.enable_chat_history
+    @aiutils.enable_chat_history
     def main(self):
 
         # Session state to keep track of login status
@@ -78,7 +81,7 @@ class ContextChatbot:
             chain = self.setup_chain()
             user_query = st.chat_input(placeholder="Type your response here!")
             if user_query:
-                mohiniutils.display_msg(user_query, 'user')
+                aiutils.display_msg(user_query, 'user')
                 with st.chat_message("assistant"):
                     st_cb = StreamHandler(st.empty())
                     result = chain.invoke(
