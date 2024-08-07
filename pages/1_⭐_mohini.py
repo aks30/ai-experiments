@@ -18,7 +18,8 @@ credentials = {
     "shyam": "shyamfortl",
     "khushboo": "khushbooforsl",
     "vijayashree": "vijayashreeforsl",
-    "prateek": "prateekforsl"
+    "prateek": "prateekforsl",
+    "tani": "tani"
 }
 
 class ContextChatbot:

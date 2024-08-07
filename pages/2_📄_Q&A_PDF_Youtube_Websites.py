@@ -6,6 +6,7 @@ import streamlit as st
 import pickle
 import validators
 from streaming import StreamHandler
+import re
 
 from bs4 import BeautifulSoup
 import io
@@ -38,7 +39,8 @@ credentials = {
     "shyam": "shyamfortl",
     "khushboo": "khushbooforsl",
     "vijayashree": "vijayashreeforsl",
-    "prateek": "prateekforsl"
+    "prateek": "prateekforsl",
+    "tani": "tani"
 }
 
 st.set_page_config(page_title="Chat with Perosnal Knowledge Repository", page_icon="📄")
@@ -70,12 +72,23 @@ class CustomDataChatbot:
         else:
             embeddings = OpenAIEmbeddings()
 
-        # vectordb = DocArrayInMemorySearch.from_documents(splits, embeddings)
-        vectordb = FAISS.from_documents(splits, embeddings)
+        # Check if the FAISS index file exists
+        if os.path.exists(file_path):
+            # Load existing FAISS index
+            with open(file_path, "rb") as f:
+                existing_bytes = pickle.load(f)
+                existing_vectordb = FAISS.deserialize_from_bytes(embeddings=embeddings, serialized=existing_bytes,allow_dangerous_deserialization='true')
+            
+            # Add new documents to the existing index
+            existing_vectordb.add_documents(splits)
+            updated_vectordb = existing_vectordb
+        else:
+            # Create a new FAISS index if the file does not exist
+            updated_vectordb = FAISS.from_documents(splits, embeddings)
 
         # Save the FAISS index to a pickle file
         with open(file_path, "wb") as f:
-            pickle.dump(vectordb.serialize_to_bytes(), f)
+            pickle.dump(updated_vectordb.serialize_to_bytes(), f)
             return True
         
     @staticmethod
@@ -190,7 +203,9 @@ class CustomDataChatbot:
                 'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:88.0) Gecko/20100101 Firefox/88.0'
                 }
             response = requests.get(final_url, headers=headers)
-            content = response.text
+            # Check if the request was successful
+            if response.status_code == 200:
+                content = response.text
         except Exception as e:
             traceback.print_exc()
         return content
@@ -199,29 +214,49 @@ class CustomDataChatbot:
     @st.spinner('Analysing URLs..')
     def index_URLs_to_vector_db(self,websites):
         
+        # Regular expression to match YouTube video URLs
+        youtube_regex = (
+        r'(https?://)?(www\.)?'
+        '(youtube|youtu|youtube-nocookie)\.(com|be)/'
+        '(watch\?v=|embed/|v/|.+\?v=)?([^&=%\?]{11})')
+    
+        # Compile the regex
+        youtube_pattern = re.compile(youtube_regex)
+
+        vectorIndexProcess = False
         # Scrape and load documents
         docs = []
         for mainURL in websites:
-            allSubURLs = self.get_page_urls(mainURL)
-            for url in allSubURLs:
-                if url.endswith('.pdf'):
-                    self.index_documents_to_vector_db(self,[],url)
-                else:
-                    docs.append(Document(
-                        page_content=self.scrape_website(url),
-                        metadata={"source":url}
+            if mainURL.endswith('.pdf'):
+                uploadFileOperation = self.index_documents_to_vector_db(self,[],mainURL)
+                if uploadFileOperation is True:
+                    vectorIndexProcess = True
+            elif (bool(youtube_pattern.match(mainURL)) == True) :
+                processURLOperation = self.index_youtube_videos_to_vector_db(self,[mainURL])
+                if processURLOperation is True:
+                    vectorIndexProcess = True
+            else:
+                allSubURLs = self.get_page_urls(mainURL)
+                for url in allSubURLs:
+                    if url.endswith('.pdf'):
+                        self.index_documents_to_vector_db(self,[],url)
+                    else:
+                        docs.append(Document(
+                            page_content=self.scrape_website(url),
+                            metadata={"source":url}
+                            )
                         )
-                    )
-        
-        # Split documents
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=2000,
-            chunk_overlap=300,
-            separators=['\n\n', '\n', '.', ',']
-        )
-        splits = text_splitter.split_documents(docs)
 
-        vectorIndexProcess = self.save_emebeddings(self, splits)
+        if len(docs) > 0:   
+            # Split documents
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=2000,
+                chunk_overlap=300,
+                separators=['\n\n', '\n', '.', ',']
+            )
+            splits = text_splitter.split_documents(docs)
+
+            vectorIndexProcess = self.save_emebeddings(self, splits)
 
         if(vectorIndexProcess == True):
             return True
@@ -277,7 +312,7 @@ class CustomDataChatbot:
         # Define retriever
         retriever = vectordb.as_retriever(
             search_type='mmr',
-            search_kwargs={'k':6, 'fetch_k':6}
+            search_kwargs={'k':4, 'fetch_k':6}
         )
 
         # Setup memory for contextual conversation        
@@ -333,8 +368,8 @@ class CustomDataChatbot:
             
 
             web_url = st.sidebar.text_area(
-                label='Enter Website URL(s)',
-                placeholder="https://abc.com,https://xyz.com",
+                label='Enter Website URL(s) - Site Links, Article Links, Youtube Videos, PDF Links',
+                placeholder="https://tunerlabs.com,https://www.youtube.com/watch?v=b4Dp_y-qsYg",
                 help="Note, you can add multiple URLs which are comma separated."
                 )
             
@@ -361,36 +396,36 @@ class CustomDataChatbot:
 
 
             # User Inputs
-            if "youtube_video_links" not in st.session_state:
-                st.session_state["youtube_video_links"] = []
+            # if "youtube_video_links" not in st.session_state:
+            #     st.session_state["youtube_video_links"] = []
             
 
-            youtube_video_urls = st.sidebar.text_area(
-                label='Enter Youtube Video URL(s)',
-                placeholder="https://www.youtube.com/watch?v=WY1jkYri2kUAD,https://www.youtube.com/watch?v=12WY1jkYri2kU",
-                help="Note, you can add multiple URLs which are comma separated."
-                )
+            # youtube_video_urls = st.sidebar.text_area(
+            #     label='Enter Youtube Video URL(s)',
+            #     placeholder="https://www.youtube.com/watch?v=WY1jkYri2kUAD,https://www.youtube.com/watch?v=12WY1jkYri2kU",
+            #     help="Note, you can add multiple URLs which are comma separated."
+            #     )
             
 
-            if st.sidebar.button(":heavy_plus_sign: Process Youtube Video (s)"):
+            # if st.sidebar.button(":heavy_plus_sign: Process Youtube Video (s)"):
 
-                # Split the string by commas
-                urls = youtube_video_urls.split(',')
+            #     # Split the string by commas
+            #     urls = youtube_video_urls.split(',')
 
-                # Remove any leading/trailing whitespace from each part
-                urls = [url.strip() for url in urls]
+            #     # Remove any leading/trailing whitespace from each part
+            #     urls = [url.strip() for url in urls]
 
-                for i, url in enumerate(urls, start=1):
+            #     for i, url in enumerate(urls, start=1):
 
-                    valid_url = url.startswith('https://www.youtube.com/') and validators.url(url)
-                    if valid_url :
-                        st.session_state["youtube_video_links"].append(url)
+            #         valid_url = url.startswith('https://www.youtube.com/') and validators.url(url)
+            #         if valid_url :
+            #             st.session_state["youtube_video_links"].append(url)
 
 
-            if len(st.session_state["youtube_video_links"]) > 0 :
-                processURLOperation = self.index_youtube_videos_to_vector_db(self,st.session_state["youtube_video_links"])
-                if processURLOperation is True:
-                    st.session_state["youtube_video_links"] = []
+            # if len(st.session_state["youtube_video_links"]) > 0 :
+            #     processURLOperation = self.index_youtube_videos_to_vector_db(self,st.session_state["youtube_video_links"])
+            #     if processURLOperation is True:
+            #         st.session_state["youtube_video_links"] = []
 
             user_query = st.chat_input(placeholder="Ask me anything!")
 
