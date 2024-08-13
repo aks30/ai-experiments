@@ -18,4 +18,5 @@ yt_dlp
 pydub
 librosa
 bs4
-ffmpeg-python
+transformers
+torch
