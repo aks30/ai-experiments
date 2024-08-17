@@ -8,6 +8,9 @@ import validators
 from streaming import StreamHandler
 import re
 
+from streamlit_mic_recorder import mic_recorder
+from streamlit_float import *
+
 from bs4 import BeautifulSoup
 import io
 import requests
@@ -51,6 +54,8 @@ class CustomDataChatbot:
 
     def __init__(self):
         aiutils.sync_st_session()
+        # Initialize floating features for the interface
+        float_init(theme=True, include_unstable_primary=False)
         self.llm = aiutils.configure_llm()
 
     @staticmethod
@@ -427,7 +432,40 @@ class CustomDataChatbot:
             #     if processURLOperation is True:
             #         st.session_state["youtube_video_links"] = []
 
-            user_query = st.chat_input(placeholder="Ask me anything!")
+            # user_query = st.chat_input(placeholder="Ask me anything!")
+            # Create a container for the microphone and audio recording
+            footer_container = st.container()
+            with footer_container:
+                user_query = footer_container.chat_input(placeholder="Ask me anything!")
+
+                audio = mic_recorder(
+                    start_prompt="Click to provide your input via voice - Start Recording",
+                    stop_prompt="Stop recording",
+                    just_once=False,
+                    use_container_width=False,
+                    format="webm",
+                    callback=None,
+                    args=(),
+                    kwargs={},
+                    key=None
+                )
+                
+                button_b_pos = "0rem"
+                button_css = float_css_helper(width="2.2rem", bottom=button_b_pos, transition=0)
+                float_parent(css=button_css)
+            
+            if audio:
+                with st.spinner("Transcribing..."):
+                    # Write the audio bytes to a temporary file
+                    webm_file_path = st.session_state.logged_in_user+"_temp_audio.mp3"
+                    with open(webm_file_path, "wb") as f:
+                        f.write(audio['bytes'])
+
+                    # Convert the audio to text using the speech_to_text function
+                    transcript = aiutils.speech_to_text(webm_file_path)
+                    if len(transcript) > 0:
+                        user_query = transcript
+                        os.remove(webm_file_path)
 
             if user_query:
                 qa_chain = self.setup_qa_chain(self)

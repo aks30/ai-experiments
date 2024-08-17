@@ -5,6 +5,9 @@ from dotenv import load_dotenv
 from datetime import datetime
 from langchain_openai import ChatOpenAI
 from langchain_community.chat_models import ChatOllama
+import whisper
+
+whispermodel = whisper.load_model("base")
 
 # Load environment variables from .env file
 load_dotenv()
@@ -105,3 +108,24 @@ def configure_llm():
 def sync_st_session():
     for k, v in st.session_state.items():
         st.session_state[k] = v
+
+def speech_to_text(audio_file):
+    transcript = ""
+    # result = whispermodel.transcribe(audio_file)
+    # load audio and pad/trim it to fit 30 seconds
+    audio = whisper.load_audio(audio_file)
+    audio = whisper.pad_or_trim(audio)
+
+    # make log-Mel spectrogram and move to the same device as the model
+    mel = whisper.log_mel_spectrogram(audio).to(whispermodel.device)
+
+    # detect the spoken language
+    _, probs = whispermodel.detect_language(mel)
+    print(f"Detected language: {max(probs, key=probs.get)}")
+
+    # decode the audio
+    options = whisper.DecodingOptions(task="translate")
+    result = whisper.decode(whispermodel, mel, options)
+
+    transcript = result.text
+    return transcript

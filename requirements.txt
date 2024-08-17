@@ -20,3 +20,6 @@ librosa
 bs4
 transformers
 torch
+streamlit-float
+openai-whisper
+streamlit-mic-recorder
