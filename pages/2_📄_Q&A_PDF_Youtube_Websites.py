@@ -114,7 +114,7 @@ class CustomDataChatbot:
             
     @staticmethod
     @st.spinner('Analysing documents..')
-    def index_documents_to_vector_db(self,uploaded_files, pdfURL=None):
+    def index_documents_to_vector_db(self,uploaded_files, pdfURL=""):
         
         folder = 'tmp'
         if not os.path.exists(folder):
@@ -130,7 +130,7 @@ class CustomDataChatbot:
                 loader = PyPDFLoader(file_path)
                 docs.extend(loader.load())
         
-        if pdfURL is not None and pdfURL.strip():
+        if len(pdfURL.strip()) > 0:
             response = requests.get(pdfURL)
             # Check if the request was successful
             if response.status_code == 200:
@@ -358,7 +358,7 @@ class CustomDataChatbot:
             # User Inputs
             uploaded_files = st.sidebar.file_uploader(label='Upload PDF files', type=['pdf'], accept_multiple_files=True)
             if uploaded_files:
-                uploadFileOperation = self.index_documents_to_vector_db(self,uploaded_files)
+                uploadFileOperation = self.index_documents_to_vector_db(self,uploaded_files,"")
                 if uploadFileOperation is True:
                     st.session_state["uploaded_files"] = []
 
