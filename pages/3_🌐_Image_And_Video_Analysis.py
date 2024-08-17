@@ -1,14 +1,15 @@
 import streamlit as st
 import pandas as pd
-import requests
-from transformers import Blip2Processor, Blip2ForConditionalGeneration  
+import requests  
 from PIL import Image
 import requests
 import validators
 import torch
 
-processor = Blip2Processor.from_pretrained("Salesforce/blip2-opt-2.7b")
-model = Blip2ForConditionalGeneration.from_pretrained("Salesforce/blip2-opt-2.7b")
+# Load model directly
+from lavis.models import load_model_and_preprocess
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model, vis_processors, txt_processors = load_model_and_preprocess(name="blip_vqa", model_type="vqav2", is_eval=True, device=device)
 
 # Dictionary to store usernames and passwords
 credentials = {
@@ -41,13 +42,31 @@ def process_image(image_url, question):
 
 def analyse_image(url, question):
 
-    image = Image.open(requests.get(url, stream=True).raw).convert('RGB')
+    answer = ''
+    raw_image = Image.open(requests.get(url, stream=True).raw).convert('RGB')
 
-    inputs = processor(image, question, return_tensors="pt")
+    # use "eval" processors for inference
+    image = vis_processors["eval"](raw_image).unsqueeze(0).to(device)
+    question = txt_processors["eval"](question)
 
-    out = model.generate(**inputs)
-    answer = processor.decode(out[0], skip_special_tokens=True).strip()
+    samples = {"image": image, "text_input": question}
 
+    answer = model.predict_answers(samples=samples, inference_method="generate")
+    # if len(question) > 0:
+    #     prompt = "Question: "+question+" Answer:"
+        
+    #     inputs = processor(images=image, text=prompt, return_tensors="pt")
+
+    #     generated_ids = model.generate(**inputs)
+    #     answer = processor.decode(generated_ids[0], skip_special_tokens=True).strip()
+
+    # else:
+
+    #     inputs = processor(images=image, return_tensors="pt")
+    #     generated_ids = model.generate(**inputs)
+    #     answer = processor.decode(generated_ids[0], skip_special_tokens=True).strip()
+
+    
     return answer
 
 def main():
