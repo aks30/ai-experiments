@@ -1,4 +1,4 @@
-# Chatbot Implementations with Langchain
+# Chatbot Implementations with Langchain and Image Analysis
 
 Langchain is a powerful framework designed to streamline the development of applications using Language Models (LLMs). \
 It provides a comprehensive integration of various components, simplifying the process of assembling them to create robust applications.
