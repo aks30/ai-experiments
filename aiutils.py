@@ -9,23 +9,23 @@ import whisper
 import ast
 from clarifai.client.model import Model as clarifiaModel
 from clarifai.client.input import Inputs as clarifaiInputs
-import torch
-from PIL import Image
-import requests
-from lavis.models import load_model_and_preprocess
+# import torch
+# from PIL import Image
+# import requests
+# from lavis.models import load_model_and_preprocess
 
 
 # setup device to use
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Load BLIP VQA model finetuned on VQAv2
+# # Load BLIP VQA model finetuned on VQAv2
 
-blip1_vqa_model, blip1_vqa_vis_processors, blip1_vqa_txt_processors = load_model_and_preprocess(name="blip_vqa", model_type="vqav2", is_eval=True, device=device)
+# blip1_vqa_model, blip1_vqa_vis_processors, blip1_vqa_txt_processors = load_model_and_preprocess(name="blip_vqa", model_type="vqav2", is_eval=True, device=device)
 
-# we associate a model with its preprocessors to make it easier for inference.
-blip1_caption_model, blip1_caption_vis_processors, _ = load_model_and_preprocess(
-    name="blip_caption", model_type="large_coco", is_eval=True, device=device
-)
+# # we associate a model with its preprocessors to make it easier for inference.
+# blip1_caption_model, blip1_caption_vis_processors, _ = load_model_and_preprocess(
+#     name="blip_caption", model_type="large_coco", is_eval=True, device=device
+# )
 
 # Load environment variables from .env file
 load_dotenv()
