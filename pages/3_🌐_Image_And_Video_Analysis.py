@@ -40,7 +40,7 @@ def process_image(image_url, question):
 
         questions = question.split(",")
         # Analyze the image
-        image_processing_output["answers"] = aiutils.blip1_image_qa(image_url, questions)
+        # image_processing_output["answers"] = aiutils.blip1_image_qa(image_url, questions)
         
         if any(entry == "yes" for entry in image_processing_output["answers"]):
             image_processing_output["verification"] = True
