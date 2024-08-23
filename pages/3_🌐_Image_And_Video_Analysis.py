@@ -1,15 +1,10 @@
 import streamlit as st
+import aiutils
 import pandas as pd
 import requests  
 from PIL import Image
 import requests
 import validators
-import torch
-
-# Load model directly
-from lavis.models import load_model_and_preprocess
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model, vis_processors, txt_processors = load_model_and_preprocess(name="blip_vqa", model_type="vqav2", is_eval=True, device=device)
 
 # Dictionary to store usernames and passwords
 credentials = {
@@ -28,46 +23,53 @@ st.write('Download a sample CSV here and upload your sheet for analysis below.')
 
 def process_image(image_url, question):
 
+    image_processing_output = {
+        "answers" : [],
+        "caption" : "No caption available",
+        "verification" : True
+    }
+
     valid_url = image_url.startswith('http') and validators.url(image_url)
     if valid_url :
+
+        questions = question.split(",")
         # Analyze the image
-        description_results = analyse_image(image_url, question)
+        image_processing_output["answers"] = aiutils.blip1_image_qa(image_url, questions)
         
-        if description_results:
-            return description_results
+        if any(entry == "yes" for entry in image_processing_output["answers"]):
+            image_processing_output["verification"] = True
         else:
-            return "No description available."
-    else:
-        return "No description available."
-
-def analyse_image(url, question):
-
-    answer = ''
-    raw_image = Image.open(requests.get(url, stream=True).raw).convert('RGB')
-
-    # use "eval" processors for inference
-    image = vis_processors["eval"](raw_image).unsqueeze(0).to(device)
-    question = txt_processors["eval"](question)
-
-    samples = {"image": image, "text_input": question}
-
-    answer = model.predict_answers(samples=samples, inference_method="generate")
-    # if len(question) > 0:
-    #     prompt = "Question: "+question+" Answer:"
+            image_processing_output["verification"] = False
         
-    #     inputs = processor(images=image, text=prompt, return_tensors="pt")
-
-    #     generated_ids = model.generate(**inputs)
-    #     answer = processor.decode(generated_ids[0], skip_special_tokens=True).strip()
-
-    # else:
-
-    #     inputs = processor(images=image, return_tensors="pt")
-    #     generated_ids = model.generate(**inputs)
-    #     answer = processor.decode(generated_ids[0], skip_special_tokens=True).strip()
-
+        image_processing_output["caption"] = aiutils.generate_image_caption(image_url)
     
-    return answer
+    return image_processing_output
+
+
+def process_doc(url, question):
+
+    doc_processing_output = {
+        "answers" : [],
+        "caption" : "No caption available",
+        "verification" : True
+    }
+
+    valid_url = url.startswith('http') and validators.url(url)
+    if valid_url :
+
+        questions = question.split(",")
+        # Analyze the image
+        doc_processing_output["answers"] = aiutils.blip1_image_qa(url, questions)
+        
+        if any(entry == "yes" for entry in doc_processing_output["answers"]):
+            doc_processing_output["verification"] = True
+        else:
+            doc_processing_output["verification"] = False
+        
+        doc_processing_output["caption"] = aiutils.generate_image_caption(url)
+    
+    return doc_processing_output
+
 
 def main():
 
@@ -78,8 +80,24 @@ def main():
         # Read CSV
         df = pd.read_csv(uploaded_file)
         
-        # Add a new column for captions
-        df['caption'] = ""
+        # Add a new column for task evidence captions
+        df['task_evidence_caption'] = "NA"
+
+        # Add a new column for q&a
+        df['task_evidence_question_answers'] = "NA"
+
+        # Add a new column for task evidence test status
+        df['task_evidence_verification'] = "Pass"
+
+        # Add a new column for project evidence captions
+        df['project_evidence_caption'] = "NA"
+
+        # Add a new column for q&a
+        df['project_evidence_question_answers'] = "NA"
+
+        # Add a new column for task evidence test status
+        df['project_evidence_verification'] = "Pass"
+
         
         # Process each URL in the CSV
         for index, row in df.iterrows():
@@ -87,22 +105,38 @@ def main():
             taskEvidenceQuestion = row['Task Evidence Question']
             projectEvidenceQuestion = row['Project Evidence Question']
             if url.endswith(('.png', '.jpg', '.jpeg')):
-                st.subheader(f"Image {index+1}")
+                st.subheader(f"Task Image {index+1}")
                 st.image(url, caption=f"Image {index+1}", use_column_width=True)
-                description = process_image(url, taskEvidenceQuestion)
-                df.at[index, 'caption'] = description
-                st.write(description)
+                image_processing_output = process_image(url, taskEvidenceQuestion)
+                df.at[index, 'task_evidence_caption'] = image_processing_output["caption"]
+                df.at[index, 'task_evidence_question_answers'] = ",".join(image_processing_output["answers"])
+                df.at[index, 'task_evidence_verification'] = image_processing_output["verification"]
+                # st.write(image_processing_output)
+                st.write(image_processing_output["caption"])
             elif url.endswith('.mp4'):
-                st.subheader(f"Video {index+1}")
-                # Videos are not directly supported for analysis by the Azure Vision API for captions
-                st.video(url)
-                df.at[index, 'caption'] = "Video analysis is not supported in this demo."
-            else:
-                st.subheader(f"Documents {index+1}")
+                # st.subheader(f"Task Video {index+1}")
                 # Videos are not directly supported for analysis by the Azure Vision API for captions
                 # st.video(url)
-                description = "Analysing documents."
-                df.at[index, 'caption'] = description
+                df.at[index, 'task_evidence_caption'] = "Video analysis is not supported in this demo."
+                df.at[index, 'task_evidence_question_answers'] = "NA"
+                df.at[index, 'task_evidence_verification'] = "NA"
+            elif url.endswith(('.doc', '.pdf', '.txt', '.docx')):
+                # st.subheader(f"Task Video {index+1}")
+                # Videos are not directly supported for analysis by the Azure Vision API for captions
+                # st.video(url)
+                doc_processing_output = process_doc(url, taskEvidenceQuestion)
+                df.at[index, 'task_evidence_caption'] = doc_processing_output["caption"]
+                df.at[index, 'task_evidence_question_answers'] = ",".join(doc_processing_output["answers"])
+                df.at[index, 'task_evidence_verification'] = doc_processing_output["verification"]
+            else:
+                # st.subheader(f"Documents {index+1}")
+                # Videos are not directly supported for analysis by the Azure Vision API for captions
+                # st.video(url)
+                description = "File type not supported."
+                df.at[index, 'task_evidence_caption'] = description
+                df.at[index, 'task_evidence_question_answers'] = "NA"
+                df.at[index, 'task_evidence_verification'] = "NA"
+        
         # Display the result as a table
         st.subheader("Results")
         st.write(df)

@@ -6,8 +6,26 @@ from datetime import datetime
 from langchain_openai import ChatOpenAI
 from langchain_community.chat_models import ChatOllama
 import whisper
+import ast
+from clarifai.client.model import Model as clarifiaModel
+from clarifai.client.input import Inputs as clarifaiInputs
+import torch
+from PIL import Image
+import requests
+from lavis.models import load_model_and_preprocess
 
-whispermodel = whisper.load_model("base")
+
+# setup device to use
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Load BLIP VQA model finetuned on VQAv2
+
+blip1_vqa_model, blip1_vqa_vis_processors, blip1_vqa_txt_processors = load_model_and_preprocess(name="blip_vqa", model_type="vqav2", is_eval=True, device=device)
+
+# we associate a model with its preprocessors to make it easier for inference.
+blip1_caption_model, blip1_caption_vis_processors, _ = load_model_and_preprocess(
+    name="blip_caption", model_type="large_coco", is_eval=True, device=device
+)
 
 # Load environment variables from .env file
 load_dotenv()
@@ -15,6 +33,11 @@ load_dotenv()
 # Get OpenAI API key and model name from environment variables
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OLLAMA_ENDPOINT = os.getenv("OLLAMA_ENDPOINT")
+# Get OpenAI API key and model name from environment variables
+CLARIFAI_PAT = os.getenv("CLARIFAI_PAT")
+calrifaiModelInstance = clarifiaModel(url="https://clarifai.com/microsoft/florence/models/florence-2-large",pat=CLARIFAI_PAT)
+
+whispermodel = whisper.load_model("base")
 
 #decorator
 def enable_chat_history(func):
@@ -108,6 +131,78 @@ def configure_llm():
 def sync_st_session():
     for k, v in st.session_state.items():
         st.session_state[k] = v
+
+
+def blip1_image_qa(image_url="",questions=[]):
+    answers = []
+    if len(image_url) > 0 and len(questions) > 0:
+
+        raw_image = Image.open(requests.get(image_url, stream=True).raw).convert("RGB")
+
+        image = blip1_vqa_vis_processors["eval"](raw_image).unsqueeze(0).to(device)
+
+        # uncomment to use base model
+        # caption_model, caption_vis_processors, _ = load_model_and_preprocess(
+        #     name="blip_caption", model_type="base_coco", is_eval=True, device=device
+        # )
+
+        # use "eval" processors for inference
+        # question = "Does the image have children in the photo?"
+        # question = vqa_txt_processors["eval"](question)
+
+        # samples = {"image": image, "text_input": question}
+        # vqa_model.predict_answers(samples=samples, inference_method="generate")
+
+        batch_size = len(questions)
+
+        # create a batch of samples, could be multiple images or copies of the same image
+        image_batch = image.repeat(batch_size, 1, 1, 1)
+
+        # create a batch of questions, make sure the number of questions matches the number of images
+        question_batch = []
+        for question in questions:
+            question_batch.append(blip1_vqa_txt_processors["eval"](question))
+
+        answers = blip1_vqa_model.predict_answers(samples={"image": image_batch, "text_input": question_batch}, inference_method="generate")
+
+
+    return answers
+
+
+def blip1_image_captioning(image_url=""):
+    caption = ""
+    if len(image_url) > 0:
+
+        raw_image = Image.open(requests.get(image_url, stream=True).raw).convert("RGB")
+
+        # Image captioning using blip model
+        caption_image = blip1_caption_vis_processors["eval"](raw_image).unsqueeze(0).to(device)
+        caption = blip1_caption_model.generate({"image": caption_image})
+
+        # print(caption_model.generate({"image": caption_image}, use_nucleus_sampling=True, num_captions=3))
+
+    return caption
+
+
+
+def generate_image_caption(image_url=""):
+    caption = ""
+    if len(image_url) > 0:
+        prompt = "<MORE_DETAILED_CAPTION>"
+        inference_params = dict(max_tokens=512)
+            
+        caption_prediction = calrifaiModelInstance.predict(inputs = [clarifaiInputs.get_multimodal_input(input_id="",image_url=image_url, raw_text=prompt)],inference_params=inference_params)
+            
+        caption_output = caption_prediction.outputs[0].data.text.raw
+
+        # Convert the string representation of a dictionary into an actual dictionary
+        caption_output_dict = ast.literal_eval(caption_output)
+
+        # Now, you can access the value using the key
+        caption = caption_output_dict['<MORE_DETAILED_CAPTION>']
+
+    return caption
+
 
 def speech_to_text(audio_file):
     transcript = ""
